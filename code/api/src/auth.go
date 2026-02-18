@@ -82,7 +82,7 @@ func validateAuth(next http.Handler) http.Handler {
 		header := r.Header.Get("Token")
 
 		if header == "" {
-			respondError(w, http.StatusUnauthorized, "No Token Found")
+			respondError(w, http.StatusUnauthorized, "Invalid Token Provided")
 			return
 		}
 
@@ -105,7 +105,7 @@ func validateAuth(next http.Handler) http.Handler {
 			}
 		}
 
-		respondError(w, http.StatusUnauthorized, "Invalid Token")
+		respondError(w, http.StatusUnauthorized, "Invalid Token Provided")
 		return
 	})
 }

@@ -10,11 +10,11 @@
         <div class="text-h6">
           Title
         </div>
-        <v-text-field v-model="post.title"></v-text-field>
+        <v-text-field v-model="post.data.title"></v-text-field>
         <div class="text-h6">
           Content
         </div>
-        <v-textarea label="Content" v-model="post.content"></v-textarea>
+        <v-textarea v-model="post.data.content"></v-textarea>
       </v-card-text>
       <v-card-actions>
         <v-btn variant="outlined" @click="cancelPost()">
@@ -30,23 +30,49 @@
 
 <script setup>
 import { ref, reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import _ from 'lodash';
 
-const emit = defineEmits(['close']);
+import { usePostsStore } from "@/stores/posts"
+const postsStore = usePostsStore()
+
+const router = useRouter()
 
 const props = defineProps({
-  post: {
-    type: Object,
-    required: true,
+  id: {
+    type: Number,
+    default: 0
   }
 })
 
-const submitPost = () => {
-  emit("close")
+const post = reactive({
+  data: {}
+})
+
+const submitPost = async () => {
+  postsStore.submitPost(post.data)
+    .then(() => {
+      router.push({ name: "home" })
+    })
 }
 
-const cancelPost= () => {
-  emit("close")
+const cancelPost = () => {
+  router.push({ name: "home" })
 }
+
+const loadPost = () => {
+  const content = _.find(postsStore.posts, { id: props.id })
+  if (content) {
+    post.data = content
+  }
+}
+
+loadPost()
 
 </script>
+
+
+
+
+
+

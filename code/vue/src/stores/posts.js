@@ -3,6 +3,8 @@ import {reactive} from 'vue';
 import _ from 'lodash';
 import postsAPI from '@/api/posts';
 
+import auth from '@/modules/auth'
+
 const posts = reactive([]);
 
 const getPosts = () => new Promise((resolve, reject) => {
@@ -28,21 +30,21 @@ const getPosts = () => new Promise((resolve, reject) => {
 		});
 });
 
-const submitPost = () => new Promise((resolve, reject) => {
-	postsAPI.submit()
+const submitPost = (post) => new Promise((resolve, reject) => {
+    const token = auth.getToken()
+
+	postsAPI.submit(post, token)
 		.then(result => {
 			if (!result) {
 				return;
 			}
 
-			_.forEach(result, item => {
-				const index = _.findIndex(posts, {id: item.id});
+				const index = _.findIndex(posts, {id: result.id});
 				if (index == -1) {
-					posts.push(item);
+					posts.push(result);
 				} else {
-					posts.splice(index, 1, item);
+					posts.splice(index, 1, result);
 				}
-			});
 
 			resolve();
 		})
