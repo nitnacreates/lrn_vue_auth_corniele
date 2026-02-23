@@ -7,22 +7,15 @@
 
     <v-spacer> </v-spacer>
 
-    <v-btn v-if="!loggedIn"
-           icon
-           @click="onRegister">
-      <v-icon>
-        mdi-account-plus
-      </v-icon>
-    </v-btn>
-    <v-btn v-if="!loggedIn"
+    <v-btn v-if="!isAuthenticated"
            icon
            @click="onLogin">
       <v-icon>
         mdi-login
       </v-icon>
     </v-btn>
-    <div v-if="loggedIn">
-      {{ displayName }}
+    <div v-if="isAuthenticated">
+      {{ currentUser.name }}
       <v-btn icon
              @click="onLogout">
         <v-icon>
@@ -36,30 +29,28 @@
 <script setup>
 
 import { computed } from 'vue'
-import emitter from "@/plugins/mitt";
 
-import { useSessionStore } from "@/stores/session"
+import { useAuth0 } from '@auth0/auth0-vue'
+const auth0 = useAuth0()
 
-const sessionStore = useSessionStore()
-
-const loggedIn = computed(() => {
-  return sessionStore.getLoggedIn()
+const isAuthenticated = computed(() => {
+  return auth0.isAuthenticated.value
 })
 
-const displayName = computed(() => {
-  return sessionStore.getFullName()
+const currentUser = computed(() => {
+  if (auth0.user)
+		return auth0.user.value
+
+	return {}
 })
 
-const onRegister = () => {
-  emitter.emit("register")
-}
 
 const onLogin = () => {
-  emitter.emit("login")
+  auth0.loginWithRedirect()
 }
 
 const onLogout = () => {
-  emitter.emit("logout")
+	auth0.logout({logoutParams: {returnTo: window.location.origin}})
 }
 
 </script>

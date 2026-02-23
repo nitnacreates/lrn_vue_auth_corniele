@@ -1,7 +1,8 @@
 // Composables
 import {createRouter, createWebHistory} from 'vue-router';
 
-import { useSessionStore } from '@/stores/session'
+import { createAuthGuard } from '@auth0/auth0-vue'
+const authGuard = createAuthGuard()
 
 const routes = [
 	{
@@ -17,7 +18,7 @@ const routes = [
 				path: '/create',
 				name: 'create',
 				component: () => import('@/components/postcreate.vue'),
-                meta: { requiresAuth: true },
+                beforeEnter: authGuard,
 			},
 			{
 				path: '/view/:id',
@@ -32,7 +33,7 @@ const routes = [
 				path: '/edit/:id',
 				name: 'edit',
 				component: () => import('@/components/postedit.vue'),
-                meta: { requiresAuth: true },
+                beforeEnter: authGuard,
 				props: route => ({
 					...route.params,
 					id: Number.parseInt(route.params.id, 10) || undefined,
@@ -40,34 +41,12 @@ const routes = [
 			},
 		],
 	},
-	{
-		path: '/login',
-		name: 'login',
-		component: () => import('@/components/login.vue'),
-	},
-	{
-		path: '/register',
-		name: 'register',
-		component: () => import('@/components/register.vue'),
-	},
 ];
 
 const router = createRouter({
 	history: createWebHistory(process.env.BASE_URL),
 	routes,
 });
-
-router.beforeEach((to, from) => {
-    if (to.meta.requiresAuth) {
-        const sessionStore = useSessionStore()
-
-        if (!sessionStore.getLoggedIn()) {
-            return {
-                name: 'login'
-            }
-        }
-    }
-})
 
 
 export default router;

@@ -32,6 +32,9 @@ import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import _ from 'lodash';
 
+import { useAuth0 } from '@auth0/auth0-vue'
+const auth0 = useAuth0()
+
 import { usePostsStore } from "@/stores/posts"
 const postsStore = usePostsStore()
 
@@ -46,7 +49,9 @@ const post = reactive({
 })
 
 const submitPost = async () => {
-  postsStore.submitPost(post.data)
+	const token = await auth0.getAccessTokenSilently()
+
+  postsStore.createPost(post.data, token)
     .then(() => {
       router.push({ name: "home" })
     })
@@ -57,10 +62,3 @@ const cancelPost = () => {
 }
 
 </script>
-
-
-
-
-
-
-

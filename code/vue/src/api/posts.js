@@ -14,10 +14,10 @@ const get = () => new Promise((resolve, reject) => {
 		});
 });
 
-const submit = (post, token) => new Promise((resolve, reject) => {
+const create = (post, token) => new Promise((resolve, reject) => {
 	const config = {
 		headers: {
-			Token: token,
+			Authorization: 'Bearer ' + token,
 		},
 	};
 
@@ -30,4 +30,20 @@ const submit = (post, token) => new Promise((resolve, reject) => {
 		});
 });
 
-export default {get, submit};
+const update = (id, post, token) => new Promise((resolve, reject) => {
+	const config = {
+		headers: {
+			Authorization: 'Bearer ' + token,
+		},
+	};
+
+	axios.post(RESOURCE_VALUE + '/' + id, post, config)
+		.then(result => {
+			resolve(result.data);
+		})
+		.catch(error => {
+			reject(error);
+		});
+});
+
+export default {get, create, update};

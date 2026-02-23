@@ -9,6 +9,7 @@ import { loadFonts } from './webfontloader'
 import vuetify from './vuetify'
 import pinia from '../stores'
 import router from '../router'
+import auth from './auth'
 
 export function registerPlugins (app) {
   loadFonts()
@@ -16,4 +17,5 @@ export function registerPlugins (app) {
     .use(vuetify)
     .use(router)
     .use(pinia)
+    .use(auth)
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 )
 
 func corsHandler() func(http.Handler) http.Handler {
@@ -18,7 +19,7 @@ func corsHandler() func(http.Handler) http.Handler {
 	credentials := handlers.AllowCredentials()
 	headers := handlers.AllowedHeaders([]string{"Authorization", "X-Requested-With", "Content-Type", "Access-Control-Allow-Credentials"})
 	origins := handlers.AllowedOrigins([]string{"*"})
-	methods := handlers.AllowedMethods([]string{"GET", "POST", "OPTIONS"})
+	methods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "OPTIONS"})
 	exposed := handlers.ExposedHeaders([]string{"Token"})
 
 	return handlers.CORS(credentials, headers, origins, methods, exposed)
@@ -29,9 +30,9 @@ func corsMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		if r.Method == "OPTIONS" {
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Authorization, X-Requested-With, Content-Type, Access-Control-Allow-Credentials, Token")
-			w.Header().Set("Access-Control-Exposed-Headers", "Token, Authorization")
+			w.Header().Set("Access-Control-Exposed-Headers", "Authorization")
 			w.Header().Set("Content-Type", "application/json")
 			return
 		}
@@ -51,21 +52,35 @@ func main() {
 
 	flag.Parse()
 
+	if err := godotenv.Load(); err != nil {
+		log.Fatalf("Error loading the .env file: %v", err)
+	}
+
+	if os.Getenv("AUTH0_DOMAIN") == "" {
+		fmt.Println("Please check the AUTH0_DOMAIN variable")
+	}
+	if os.Getenv("AUTH0_AUDIENCE") == "" {
+		fmt.Println("Please check the AUTH0_AUDIENCE variable")
+	}
+	if os.Getenv("AUTH0_CLIENTID") == "" {
+		fmt.Println("Please check the AUTH0_CLIENTID variable")
+	}
+	if os.Getenv("AUTH0_CLIENTSECRET") == "" {
+		fmt.Println("Please check the AUTH0_CLIENTSECRET variable")
+	}
+
 	rtr := mux.NewRouter()
 	rtr.Use(loggingMiddleware)
 
 	rtr.HandleFunc("/posts", getPosts).Methods("GET")
-	rtr.HandleFunc("/register", registerUser).Methods("POST")
-	rtr.HandleFunc("/authenticate", authenticateUser).Methods("POST")
 
 	authRtr := rtr.Methods(http.MethodPost).Subrouter()
-	authRtr.HandleFunc("/posts", submitPost).Methods("POST")
-	authRtr.HandleFunc("/refresh", refreshUser).Methods("POST")
-	authRtr.Use(validateAuth)
+	authRtr.HandleFunc("/posts", createPost).Methods("POST")
+	authRtr.HandleFunc("/posts/{id}", updatePost).Methods("POST")
+	authRtr.Use(EnsureValidToken())
 
 	fmt.Printf("Blog server running at %s\n", hostAddress)
 
-	loadUsers()
 	loadPosts()
 
 	log.Fatal(http.ListenAndServe(hostAddress, corsMiddleware(rtr)))

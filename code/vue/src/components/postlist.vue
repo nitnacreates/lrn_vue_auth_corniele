@@ -37,7 +37,7 @@
                 </v-btn>
               </td>
               <td class="text-right">
-                <v-btn variant="outlined" @click="editPost(post)">
+                <v-btn v-if="isAuthenticated" variant="outlined" @click="editPost(post)">
                   Edit
                 </v-btn>
               </td>
@@ -46,7 +46,7 @@
         </v-table>
       </v-card-text>
       <v-card-actions>
-        <v-btn variant="outlined" @click="createPost()">
+        <v-btn v-if="isAuthenticated" variant="outlined" @click="createPost()">
           Create
         </v-btn>
       </v-card-actions>
@@ -60,10 +60,12 @@ import { useRouter } from 'vue-router'
 import _ from 'lodash';
 
 import { usePostsStore } from "@/stores/posts"
+const postsStore = usePostsStore()
+
+import { useAuth0 } from '@auth0/auth0-vue'
+const auth0 = useAuth0()
 
 const router = useRouter()
-
-const postsStore = usePostsStore()
 
 const computedPosts = computed(() => {
   let posts = postsStore.posts;
@@ -73,8 +75,11 @@ const computedPosts = computed(() => {
   return posts
 })
 
+const isAuthenticated = computed(() => {
+	return auth0.isAuthenticated.value
+})
+
 const viewPost = (post) => {
-  console.log(post.id)
   router.push({ name: "view", params: { id: post.id } })
 }
 

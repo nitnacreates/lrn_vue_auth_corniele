@@ -1,111 +1,76 @@
 package main
 
 import (
-	"fmt"
+	"context"
+	"log"
 	"net/http"
-	"strconv"
+	"net/url"
+	"os"
+	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
+	"github.com/auth0/go-jwt-middleware/v2/jwks"
+	"github.com/auth0/go-jwt-middleware/v2/validator"
 )
 
-var signingKey = []byte("sample-secret")
-
-func generateToken(userID int) (token string) {
-	expiryTime := time.Now().Add(2 * time.Hour)
-
-	regClaims := jwt.RegisteredClaims{
-		ID:        strconv.Itoa(userID),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		ExpiresAt: jwt.NewNumericDate(expiryTime),
-	}
-
-	userJwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, regClaims)
-	token, _ = userJwtToken.SignedString(signingKey)
-
-	return token
+type CustomClaims struct {
+	Scope string `json:"scope"`
 }
 
-type Auth struct {
-	FullName string `json:"fullName"`
-	Token    string `json:"token"`
+func (c CustomClaims) Validate(ctx context.Context) error {
+	return nil
 }
 
-func authenticateUser(w http.ResponseWriter, r *http.Request) {
-	userName, password, ok := r.BasicAuth()
-	if ok {
-		for _, user := range users {
-			if (user.UserName == userName) && (user.Password == password) {
-				token := generateToken(user.ID)
-
-				auth := Auth{
-					FullName: user.FullName,
-					Token:    token,
-				}
-
-				respondJSON(w, http.StatusOK, auth)
-				return
-			}
+func (c CustomClaims) HasScope(expectedScope string) bool {
+	result := strings.Split(c.Scope, " ")
+	for i := range result {
+		if result[i] == expectedScope {
+			return true
 		}
 	}
 
-	w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
-	http.Error(w, "Unauthorized", http.StatusUnauthorized)
-	return
+	return false
 }
 
-func refreshUser(w http.ResponseWriter, r *http.Request) {
-	userID, err := strconv.Atoi(r.Header.Get("UserId"))
-	if err == nil {
-		for _, user := range users {
-			if user.ID == userID {
-				token := generateToken(user.ID)
-
-				auth := Auth{
-					FullName: user.FullName,
-					Token:    token,
-				}
-
-				respondJSON(w, http.StatusOK, auth)
-				return
-			}
-		}
+func EnsureValidToken() func(next http.Handler) http.Handler {
+	issuerURL, err := url.Parse("https://" + os.Getenv("AUTH0_DOMAIN") + "/")
+	if err != nil {
+		log.Fatalf("Failed to parse the issuer url: %v", err)
 	}
 
-	w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
-	http.Error(w, "Unauthorized", http.StatusUnauthorized)
-	return
-}
+	provider := jwks.NewCachingProvider(issuerURL, 5*time.Minute)
 
-func validateAuth(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		header := r.Header.Get("Token")
+	jwtValidator, err := validator.New(
+		provider.KeyFunc,
+		validator.RS256,
+		issuerURL.String(),
+		[]string{os.Getenv("AUTH0_AUDIENCE")},
+		validator.WithCustomClaims(
+			func() validator.CustomClaims {
+				return &CustomClaims{}
+			},
+		),
+		validator.WithAllowedClockSkew(time.Minute),
+	)
+	if err != nil {
+		log.Fatalf("Failed to set up the jwt validator")
+	}
 
-		if header == "" {
-			respondError(w, http.StatusUnauthorized, "Invalid Token Provided")
-			return
-		}
+	errorHandler := func(w http.ResponseWriter, r *http.Request, err error) {
+		log.Printf("Encountered error while validating JWT: %v", err)
 
-		var regClaims jwt.RegisteredClaims
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"message":"Failed to validate JWT."}`))
+	}
 
-		token, err := jwt.ParseWithClaims(header, &regClaims, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				msg := fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-				return nil, msg
-			}
+	middleware := jwtmiddleware.New(
+		jwtValidator.ValidateToken,
+		jwtmiddleware.WithErrorHandler(errorHandler),
+	)
 
-			return signingKey, nil
-		})
-
-		if err == nil {
-			if claims, ok := token.Claims.(*jwt.RegisteredClaims); ok && token.Valid {
-				r.Header.Set("UserId", claims.ID)
-				next.ServeHTTP(w, r)
-				return
-			}
-		}
-
-		respondError(w, http.StatusUnauthorized, "Invalid Token Provided")
-		return
-	})
+	return func(next http.Handler) http.Handler {
+		return middleware.CheckJWT(next)
+	}
 }

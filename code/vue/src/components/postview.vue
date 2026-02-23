@@ -24,7 +24,7 @@
 				<v-btn variant="outlined" @click="cancelPost()">
 					Cancel
 				</v-btn>
-				<v-btn v-if="loggedIn" variant="outlined" @click="editPost()">
+				<v-btn v-if="isAuthenticated" variant="outlined" @click="editPost()">
 					Edit
 				</v-btn>
 			</v-card-actions>
@@ -40,8 +40,8 @@ import _ from 'lodash';
 import { usePostsStore } from "@/stores/posts"
 const postsStore = usePostsStore()
 
-import { useSessionStore } from "@/stores/session"
-const sessionStore = useSessionStore()
+import { useAuth0 } from '@auth0/auth0-vue'
+const auth0 = useAuth0()
 
 const router = useRouter()
 
@@ -56,8 +56,8 @@ const post = reactive({
 	data: {}
 })
 
-const loggedIn = computed(() => {
-	return sessionStore.getLoggedIn()
+const isAuthenticated = computed(() => {
+	return auth0.isAuthenticated.value
 })
 
 const editPost = () => {
@@ -78,10 +78,3 @@ const loadPost = () => {
 loadPost()
 
 </script>
-
-
-
-
-
-
-
