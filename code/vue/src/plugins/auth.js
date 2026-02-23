@@ -6,7 +6,7 @@ const auth = createAuth0({
     authorizationParams: {
         redirect_uri: window.location.origin,
         audience: 'http://localhost:8080',
-        scope: 'profile email'
+        scope: 'profile email read:post update:post create:post'
     }
 })
 
